@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi Optimasi Lampu Lalu Lintas - HC, SA, GA</title>
+    <meta name="description" content="Simulasi interaktif optimasi durasi lampu hijau pada persimpangan 4-arah menggunakan algoritma Hill Climbing, Simulated Annealing, dan Genetic Algorithm.">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="/static/style.css?v=2">
+</head>
+<body class="dark-mode">
+
+    <!-- HEADER / NAVIGATION -->
+    <header class="app-header">
+        <div class="header-logo">
+            <i class="fa-solid fa-traffic-light icon-glow"></i>
+            <div>
+                <h1>Simulasi Optimasi Lampu Lalu Lintas</h1>
+                <p>Menggunakan Algoritma Hill Climbing, Simulated Annealing, & Genetic Algorithm</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button id="themeToggleBtn" class="action-btn theme-toggle" title="Ubah Mode Siang/Malam">
+                <i class="fa-solid fa-moon"></i>
+                <span>Mode Malam</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="app-container">
+        
+        <!-- LEFT COLUMN: CONTROLS & PARAMETERS -->
+        <section class="control-panel panel-glass">
+            <h2 class="panel-title"><i class="fa-solid fa-sliders"></i> Kontrol & Parameter</h2>
+            
+            <!-- CASE STUDY & VOLUME -->
+            <div class="card-section">
+                <h3><i class="fa-solid fa-car-side"></i> Studi Kasus: Volume Kendaraan</h3>
+                
+                <div class="mode-selector">
+                    <button id="modeInteractive" class="mode-btn active" onclick="setMode('interactive')">
+                        <i class="fa-solid fa-keyboard"></i> Manual Realtime
+                    </button>
+                    <button id="modeHistorical" class="mode-btn" onclick="setMode('historical')">
+                        <i class="fa-solid fa-database"></i> Historis CSV
+                    </button>
+                    <button id="modeDynamic" class="mode-btn" onclick="setMode('dynamic')">
+                        <i class="fa-solid fa-clock"></i> Jam Dinamis
+                    </button>
+                </div>
+
+                <!-- Interactive vehicle sliders -->
+                <div id="interactiveControls" class="sub-controls active">
+                    <div class="direction-input">
+                        <label for="vehNorth"><span class="badge north">Utara</span></label>
+                        <input type="range" id="vehNorth" class="slider-veh" min="5" max="150" value="45">
+                        <span class="value-display" id="valNorth">45</span>
+                    </div>
+                    <div class="direction-input">
+                        <label for="vehSouth"><span class="badge south">Selatan</span></label>
+                        <input type="range" id="vehSouth" class="slider-veh" min="5" max="150" value="30">
+                        <span class="value-display" id="valSouth">30</span>
+                    </div>
+                    <div class="direction-input">
+                        <label for="vehEast"><span class="badge east">Timur</span></label>
+                        <input type="range" id="vehEast" class="slider-veh" min="5" max="150" value="65">
+                        <span class="value-display" id="valEast">65</span>
+                    </div>
+                    <div class="direction-input">
+                        <label for="vehWest"><span class="badge west">Barat</span></label>
+                        <input type="range" id="vehWest" class="slider-veh" min="5" max="150" value="80">
+                        <span class="value-display" id="valWest">80</span>
+                    </div>
+                    <button id="btnRandomizeVehicles" class="btn btn-secondary btn-full">
+                        <i class="fa-solid fa-shuffle"></i> Acak Kendaraan Realtime
+                    </button>
+                </div>
+
+                <!-- Historical controls -->
+                <div id="historicalControls" class="sub-controls">
+                    <div class="form-group">
+                        <label for="selectHour">Pilih Jam Evaluasi (Data Historis):</label>
+                        <select id="selectHour" class="form-control">
+                            <option value="-1">Semua Jam (Rata-rata 24 Jam)</option>
+                            <option value="0">00:00 - Dini Hari</option>
+                            <option value="4">04:00 - Fajar</option>
+                            <option value="8">08:00 - Jam Kerja Pagi</option>
+                            <option value="12">12:00 - Siang Hari</option>
+                            <option value="17">17:00 - Pulang Kantor Sore</option>
+                            <option value="21">21:00 - Malam Hari</option>
+                        </select>
+                    </div>
+                    <p class="info-text">
+                        <i class="fa-solid fa-circle-info"></i> Mode historis memuat data asli lalu lintas dari persimpangan jalan berdasarkan file <code>traffic.csv</code>.
+                    </p>
+                </div>
+
+                <!-- Dynamic hour controls -->
+                <div id="dynamicControls" class="sub-controls">
+                    <div class="form-group">
+                        <label for="selectDynamicHour">Pilih Kondisi Waktu (Realtime):</label>
+                        <select id="selectDynamicHour" class="form-control glass-select" onchange="applyDynamicPreset()">
+                            <option value="dini_hari">🌙 Dini Hari</option>
+                            <option value="jam_berangkat">🏫 Jam Berangkat</option>
+                            <option value="jam_kerja">🌅 Jam Kerja</option>
+                            <option value="jam_pulang">🚗 Jam Pulang</option>
+                            <option value="malam_hari">🌃 Malam Hari</option>
+                        </select>
+                    </div>
+                    <p class="info-text" id="dynamicInfoText">
+                        <i class="fa-solid fa-circle-info"></i> Mode ini menyesuaikan kepadatan kendaraan dan tema visual secara dinamis, menguji ketangguhan AI merespons kondisi nyata.
+                    </p>
+                </div>
+            </div>
+
+            <!-- CHOOSE ALGORITHM & TRIGGER RUN -->
+            <div class="card-section">
+                <h3><i class="fa-solid fa-microchip"></i> Pilih Algoritma</h3>
+                <div class="form-group">
+                    <select id="selectAlgorithm" class="form-control" onchange="toggleAlgorithmParams()">
+                        <option value="hill_climbing_simple">Hill Climbing - Simple</option>
+                        <option value="hill_climbing_steepest">Hill Climbing - Steepest-Ascent</option>
+                        <option value="hill_climbing_stochastic">Hill Climbing - Stochastic</option>
+                        <option value="simulated_annealing">Simulated Annealing</option>
+                        <option value="genetic_algorithm">Genetic Algorithm</option>
+                    </select>
+                </div>
+
+                <!-- PARAMETERS ACCORDION -->
+                <div class="accordion-params">
+                    <!-- Hill Climbing parameters -->
+                    <div id="paramsHC" class="param-card active">
+                        <h4>Parameter Hill Climbing</h4>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="hcIter">Iterasi</label>
+                                <input type="number" id="hcIter" class="form-control" value="300" min="50" max="2000">
+                            </div>
+                            <div class="form-group half">
+                                <label for="hcStep">Langkah (detik)</label>
+                                <input type="number" id="hcStep" class="form-control" value="5" min="1" max="20" step="0.5">
+                            </div>
+                        </div>
+                        <div class="form-group" id="steepestNeighborsDiv">
+                            <label for="hcNeighbors">Jumlah Tetangga (Steepest-Ascent)</label>
+                            <input type="number" id="hcNeighbors" class="form-control" value="15" min="2" max="50">
+                        </div>
+                        <div class="form-group" id="stochasticTDiv">
+                            <label for="hcTStart">Suhu Awal (Stochastic)</label>
+                            <input type="number" id="hcTStart" class="form-control" value="50" min="5" max="500">
+                        </div>
+                    </div>
+
+                    <!-- Simulated Annealing parameters -->
+                    <div id="paramsSA" class="param-card">
+                        <h4>Parameter Simulated Annealing</h4>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="saT0">Suhu Awal (T0)</label>
+                                <input type="number" id="saT0" class="form-control" value="800" min="10" max="5000">
+                            </div>
+                            <div class="form-group half">
+                                <label for="saCooling">Cooling Rate (α)</label>
+                                <input type="number" id="saCooling" class="form-control" value="0.95" min="0.50" max="0.99" step="0.01">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="saTMin">Min Temp (T_min)</label>
+                                <input type="number" id="saTMin" class="form-control" value="0.05" min="0.001" max="1" step="0.001">
+                            </div>
+                            <div class="form-group half">
+                                <label for="saStep">Langkah (detik)</label>
+                                <input type="number" id="saStep" class="form-control" value="8" min="1" max="25">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Genetic Algorithm parameters -->
+                    <div id="paramsGA" class="param-card">
+                        <h4>Parameter Genetic Algorithm</h4>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="gaPop">Populasi</label>
+                                <input type="number" id="gaPop" class="form-control" value="60" min="10" max="300">
+                            </div>
+                            <div class="form-group half">
+                                <label for="gaGen">Generasi</label>
+                                <input type="number" id="gaGen" class="form-control" value="150" min="10" max="1000">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="gaCx">Prob Crossover</label>
+                                <input type="number" id="gaCx" class="form-control" value="0.8" min="0.1" max="1.0" step="0.05">
+                            </div>
+                            <div class="form-group half">
+                                <label for="gaMut">Prob Mutasi</label>
+                                <input type="number" id="gaMut" class="form-control" value="0.15" min="0.01" max="0.5" step="0.01">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group half">
+                                <label for="gaElite">Elitisme (Individu)</label>
+                                <input type="number" id="gaElite" class="form-control" value="2" min="0" max="10">
+                            </div>
+                            <div class="form-group half">
+                                <label for="gaSelection">Metode Seleksi</label>
+                                <select id="gaSelection" class="form-control">
+                                    <option value="tournament">Tournament (k=3)</option>
+                                    <option value="roulette">Roulette Wheel</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button id="btnRunOptimize" class="btn btn-primary">
+                        <i class="fa-solid fa-play"></i> Optimasi Tunggal
+                    </button>
+                    <button id="btnRunCompare" class="btn btn-accent" title="Jalankan kelima algoritma sekaligus untuk dibandingkan">
+                        <i class="fa-solid fa-chart-line"></i> Bandingkan Semua
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- CENTER COLUMN: INTERACTIVE VISUAL INTERSECTION -->
+        <section class="simulation-panel panel-glass">
+            <div class="simulation-header">
+                <h2 class="panel-title"><i class="fa-solid fa-road"></i> Animasi Persimpangan 4 Arah</h2>
+                <div class="simulation-speed">
+                    <label for="simSpeedSlider"><i class="fa-solid fa-gauge-high"></i> Kecepatan:</label>
+                    <input type="range" id="simSpeedSlider" min="0.5" max="3" step="0.5" value="1.0">
+                    <span id="valSpeed">1.0x</span>
+                </div>
+            </div>
+            
+            <!-- Canvas Intersection -->
+<div class="canvas-wrapper">
+
+    <canvas id="intersectionCanvas" width="600" height="600"></canvas>
+    
+    <!-- Overlay details -->
+    <div class="sim-overlay panel-glass">
+
+        <div class="overlay-item">
+            <span class="label">Fase:</span>
+            <span class="val pulse-text" id="simActivePhase">
+                Utara-Selatan (Hijau)
+            </span>
+        </div>
+
+        <!-- COUNTDOWN REALTIME -->
+        <div class="overlay-item">
+            <span class="label">Waktu:</span>
+            <span class="val text-amber" id="simCountdown">
+                0s
+            </span>
+        </div>
+
+        <div class="overlay-item">
+            <span class="label">Antrean:</span>
+            <span class="val text-danger" id="simTotalQueue">
+                0 Mobil
+            </span>
+        </div>
+
+        <div class="overlay-item">
+            <span class="label">Live Fitness:</span>
+            <span class="val text-success" id="simLiveFitness">
+                0.00
+            </span>
+        </div>
+
+    </div>
+
+</div>
+
+            <!-- Live Green-Time Controller Dashboard -->
+            <div class="dashboard-durations">
+                <div class="dur-card north">
+                    <div class="dur-label">Utara</div>
+                    <div class="dur-value" id="valGreenNorth">-- s</div>
+                    <div class="dur-queue" id="queueNorth">Antrean: 0</div>
+                    <div class="dur-light-status" id="lightNorth"><span class="dot"></span></div>
+                </div>
+                <div class="dur-card south">
+                    <div class="dur-label">Selatan</div>
+                    <div class="dur-value" id="valGreenSouth">-- s</div>
+                    <div class="dur-queue" id="queueSouth">Antrean: 0</div>
+                    <div class="dur-light-status" id="lightSouth"><span class="dot"></span></div>
+                </div>
+                <div class="dur-card east">
+                    <div class="dur-label">Timur</div>
+                    <div class="dur-value" id="valGreenEast">-- s</div>
+                    <div class="dur-queue" id="queueEast">Antrean: 0</div>
+                    <div class="dur-light-status" id="lightEast"><span class="dot"></span></div>
+                </div>
+                <div class="dur-card west">
+                    <div class="dur-label">Barat</div>
+                    <div class="dur-value" id="valGreenWest">-- s</div>
+                    <div class="dur-queue" id="queueWest">Antrean: 0</div>
+                    <div class="dur-light-status" id="lightWest"><span class="dot"></span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: RESULTS, METRICS, AND TABBED CHARTS -->
+        <section class="results-panel panel-glass">
+            <h2 class="panel-title"><i class="fa-solid fa-square-poll-vertical"></i> Hasil Analisis & Grafik</h2>
+            
+            <!-- AUTOMATIC WINNER ALERT -->
+            <div id="winnerAlertCard" class="winner-alert hidden-card">
+                <div class="winner-icon">
+                    <i class="fa-solid fa-trophy text-amber glow-icon"></i>
+                </div>
+                <div class="winner-info">
+                    <h4>Algoritma Terbaik Otomatis</h4>
+                    <p>Berdasarkan waktu pemrosesan dan fitness minimum, algoritma pemenang adalah:</p>
+                    <div class="winner-name" id="winnerAlgoName">Genetic Algorithm</div>
+                </div>
+            </div>
+
+            <!-- RESULT HIGHLIGHT CARDS -->
+            <div class="quick-stats">
+                <div class="stat-card">
+                    <i class="fa-solid fa-heart-pulse text-success"></i>
+                    <span class="label">Kualitas Solusi (Fitness)</span>
+                    <span class="value" id="resFitness">--</span>
+                    <span class="sub" id="resFitnessDesc">Lebih kecil = Lebih baik</span>
+                </div>
+                <div class="stat-card">
+                    <i class="fa-solid fa-stopwatch text-info"></i>
+                    <span class="label">Waktu Eksekusi</span>
+                    <span class="value" id="resTime">--</span>
+                    <span class="sub">Kecepatan kalkulasi</span>
+                </div>
+            </div>
+
+            <!-- CHARTS TABS NAVIGATION -->
+            <div class="tab-container">
+                <div class="tab-headers">
+                    <button class="tab-header active" onclick="switchTab('tabConvergence')">Konvergensi</button>
+                    <button class="tab-header" id="tabHeaderSA" onclick="switchTab('tabSA')">Detail SA</button>
+                    <button class="tab-header" id="tabHeaderGA" onclick="switchTab('tabGA')">Detail GA</button>
+                    <button class="tab-header" id="tabHeaderCompare" onclick="switchTab('tabCompare')">Bandingkan</button>
+                </div>
+                
+                <!-- Tab Convergence -->
+                <div id="tabConvergence" class="tab-content active">
+                    <div class="chart-container">
+                        <canvas id="chartConvergence"></canvas>
+                    </div>
+                    <p class="chart-caption"><i class="fa-solid fa-circle-nodes"></i> Grafik menunjukkan penurunan nilai fitness (total antrean tertunda) seiring bertambahnya iterasi/generasi.</p>
+                </div>
+
+                <!-- Tab Simulated Annealing -->
+                <div id="tabSA" class="tab-content">
+                    <div class="chart-grid">
+                        <div class="chart-container">
+                            <canvas id="chartSACooling"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chartSAAcceptance"></canvas>
+                        </div>
+                    </div>
+                    <p class="chart-caption"><i class="fa-solid fa-temperature-arrow-down"></i> Kiri: Grafik Cooling Schedule (Suhu vs Iterasi). Kanan: Distribusi penerimaan solusi buruk oleh Boltzmann probability.</p>
+                </div>
+
+                <!-- Tab Genetic Algorithm -->
+                <div id="tabGA" class="tab-content">
+                    <div class="chart-container">
+                        <canvas id="chartGAEvolution"></canvas>
+                    </div>
+                    <p class="chart-caption"><i class="fa-solid fa-dna"></i> Membandingkan nilai fitness individu terbaik vs. nilai rata-rata keseluruhan populasi per generasi.</p>
+                </div>
+
+                <!-- Tab Comparison -->
+                <div id="tabCompare" class="tab-content">
+                    <div class="chart-grid">
+                        <div class="chart-container">
+                            <canvas id="chartCompareFitness"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chartCompareTime"></canvas>
+                        </div>
+                    </div>
+                    <p class="chart-caption"><i class="fa-solid fa-code-compare"></i> Perbandingan performa side-by-side: Kualitas Solusi (Fitness - lebih rendah lebih baik) dan Durasi Eksekusi (ms - lebih cepat lebih baik).</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- BOTTOM ROW: SYSTEM COMPARISON TABLE -->
+    <section class="comparison-panel panel-glass app-container">
+        <h2 class="panel-title"><i class="fa-solid fa-table"></i> Tabel Perbandingan Kinerja Algoritma</h2>
+        <div class="table-wrapper">
+            <table class="table-styled" id="comparisonTable">
+                <thead>
+                    <tr>
+                        <th>Algoritma / Varian</th>
+                        <th>Kualitas Solusi (Fitness)</th>
+                        <th>Waktu Proses (ms)</th>
+                        <th>Iterasi / Generasi</th>
+                        <th>Solusi Durasi [U, S, T, B] (detik)</th>
+                        <th>Kemampuan Keluar Local Optima</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr id="row_simple_hc">
+                        <td><strong>Simple Hill Climbing</strong></td>
+                        <td class="fit-cell">--</td>
+                        <td class="time-cell">--</td>
+                        <td class="iter-cell">--</td>
+                        <td class="sol-cell">--</td>
+                        <td class="desc-cell"><span class="badge red">Sangat Rendah</span> Terjebak pada local optima pertama</td>
+                    </tr>
+                    <tr id="row_steepest_hc">
+                        <td><strong>Steepest-Ascent Hill Climbing</strong></td>
+                        <td class="fit-cell">--</td>
+                        <td class="time-cell">--</td>
+                        <td class="iter-cell">--</td>
+                        <td class="sol-cell">--</td>
+                        <td class="desc-cell"><span class="badge red">Rendah</span> Eksplorasi searah, cepat terjebak</td>
+                    </tr>
+                    <tr id="row_stochastic_hc">
+                        <td><strong>Stochastic Hill Climbing</strong></td>
+                        <td class="fit-cell">--</td>
+                        <td class="time-cell">--</td>
+                        <td class="iter-cell">--</td>
+                        <td class="sol-cell">--</td>
+                        <td class="desc-cell"><span class="badge orange">Sedang</span> Terbantu toleransi acak probabilistik</td>
+                    </tr>
+                    <tr id="row_simulated_annealing">
+                        <td><strong>Simulated Annealing</strong></td>
+                        <td class="fit-cell">--</td>
+                        <td class="time-cell">--</td>
+                        <td class="iter-cell">--</td>
+                        <td class="sol-cell">--</td>
+                        <td class="desc-cell"><span class="badge green">Tinggi</span> Boltzmann probabilistik sangat baik untuk lolos</td>
+                    </tr>
+                    <tr id="row_genetic_algorithm">
+                        <td><strong>Genetic Algorithm</strong></td>
+                        <td class="fit-cell">--</td>
+                        <td class="time-cell">--</td>
+                        <td class="iter-cell">--</td>
+                        <td class="sol-cell">--</td>
+                        <td class="desc-cell"><span class="badge green">Sangat Tinggi</span> Crossover, mutasi, & multi-agen menghindari local optima</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="app-footer text-center">
+        <p>&copy; 2026 Proyek Optimasi Lampu Lalu Lintas. Dibuat dengan Flask, HTML5 Canvas, dan Chart.js.</p>
+    </footer>
+
+    <!-- Custom Scripts -->
+    <script src="/static/chart.js?v=2"></script>
+    <script src="/static/script.js?v=2"></script>
+</body>
+</html>
